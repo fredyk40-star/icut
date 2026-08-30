@@ -3,8 +3,7 @@
   "framework": null,
   "functions": {
     "api/**/*.php": {
-      "runtime": "vercel-php@0.7.0",
-      "nodejs": "20.x",
+      "runtime": "vercel-php@0.9.0",
       "maxDuration": 10
     }
   },
