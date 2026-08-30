@@ -4,9 +4,9 @@
  * Route: POST /api/book
  */
 
-require_once __DIR__ . '/../lib/env.php';
-require_once __DIR__ . '/../lib/db.php';
-require_once __DIR__ . '/../lib/csrf.php';
+require_once dirname(__DIR__) . '/user/lib/env.php';
+require_once dirname(__DIR__) . '/user/lib/db.php';
+require_once dirname(__DIR__) . '/user/lib/csrf.php';
 
 loadEnv(__DIR__ . '/../.env');
 
