@@ -42,3 +42,4 @@ Thumbs.db
 !/uploads/.gitkeep
 
 ck_*.txt
+.vercel

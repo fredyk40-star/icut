@@ -311,7 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Searching...';
 
                 try {
-                    const response = await fetch('/api/client-portal', {
+                    const response = await fetch('/api/client', {
                         method: 'POST',
                         body: formData,
                         headers: { 'Accept': 'application/json' }
@@ -345,7 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Cancelling...';
 
                 try {
-                    const response = await fetch('/api/cancel-booking', {
+                    const response = await fetch('/api/client', {
                         method: 'POST',
                         body: formData,
                         headers: { 'Accept': 'application/json' }

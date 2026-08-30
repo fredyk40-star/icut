@@ -2376,7 +2376,7 @@ PAYSTACK_ENABLED=1
         // Map form actions to API endpoints
         const actionMap = {
             'upload_handler.php': API_BASE + '/admin-handler',
-            'change_password.php': API_BASE + '/change-password',
+            'change_password.php': API_BASE + '/admin-handler',
             'admin_logout.php': API_BASE + '/admin-logout'
         };
 

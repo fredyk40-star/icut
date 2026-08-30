@@ -392,6 +392,225 @@ try {
             }
             break;
 
+        case 'get_business_hours':
+            $hours = $db->query("SELECT * FROM business_hours ORDER BY day_of_week")->fetchAll();
+            echo json_encode(['success' => true, 'hours' => $hours]);
+            break;
+
+        case 'update_business_hours':
+            $day = sanitizeInput($_POST['day'] ?? '');
+            $open_time = sanitizeInput($_POST['open_time'] ?? '');
+            $close_time = sanitizeInput($_POST['close_time'] ?? '');
+            $is_closed = isset($_POST['is_closed']) ? 1 : 0;
+
+            if (empty($day)) {
+                throw new Exception('Day is required');
+            }
+
+            $db->prepare("
+                UPDATE business_hours 
+                SET open_time = :open, close_time = :close, is_closed = :closed
+                WHERE day = :day
+            ")->execute([
+                ':open' => $is_closed ? null : $open_time,
+                ':close' => $is_closed ? null : $close_time,
+                ':closed' => $is_closed,
+                ':day' => $day
+            ]);
+
+            logAdminActivity('settings', $user['name'], "Updated business hours for $day");
+            echo json_encode(['success' => true, 'message' => 'Business hours updated']);
+            break;
+
+        case 'get_print_sheet':
+            $date = $_GET['date'] ?? date('Y-m-d');
+            $stmt = $db->prepare("
+                SELECT b.*, br.name as barber_name, s.name as service_name
+                FROM bookings b
+                LEFT JOIN barbers br ON b.barber_id = br.id
+                LEFT JOIN services s ON b.service_id = s.id
+                WHERE b.booking_date = :date
+                ORDER BY b.booking_time ASC
+            ");
+            $stmt->execute([':date' => $date]);
+            $bookings = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'bookings' => $bookings, 'date' => $date]);
+            break;
+
+        case 'get_client_history':
+            $phone = sanitizeInput($_GET['phone'] ?? '');
+            if (empty($phone)) {
+                throw new Exception('Phone number is required');
+            }
+
+            $notes = $db->prepare("SELECT * FROM client_notes WHERE client_phone = :phone")->execute([':phone' => $phone])->fetch();
+            $stmt = $db->prepare("
+                SELECT b.*, br.name as barber_name, s.name as service_name
+                FROM bookings b
+                LEFT JOIN barbers br ON b.barber_id = br.id
+                LEFT JOIN services s ON b.service_id = s.id
+                WHERE b.client_phone = :phone
+                ORDER BY b.booking_date DESC
+                LIMIT 50
+            ");
+            $stmt->execute([':phone' => $phone]);
+            $bookings = $stmt->fetchAll();
+
+            echo json_encode(['success' => true, 'notes' => $notes, 'bookings' => $bookings]);
+            break;
+
+        case 'update_client_notes':
+            $phone = sanitizeInput($_POST['client_phone'] ?? '');
+            $notes = sanitizeInput($_POST['notes'] ?? '');
+            $preferences = sanitizeInput($_POST['preferences'] ?? '');
+
+            if (empty($phone)) {
+                throw new Exception('Phone number is required');
+            }
+
+            $stmt = $db->prepare("
+                INSERT INTO client_notes (client_phone, notes, preferences, updated_at)
+                VALUES (:phone, :notes, :prefs, NOW())
+                ON DUPLICATE KEY UPDATE notes = :notes, preferences = :prefs, updated_at = NOW()
+            ");
+            $stmt->execute([
+                ':phone' => $phone,
+                ':notes' => $notes,
+                ':prefs' => $preferences
+            ]);
+
+            logAdminActivity('client_note', $user['name'], "Updated notes for $phone");
+            echo json_encode(['success' => true, 'message' => 'Client notes updated']);
+            break;
+
+        case 'export_bookings':
+            $date_from = $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days'));
+            $date_to = $_GET['date_to'] ?? date('Y-m-d');
+            $status = $_GET['status'] ?? '';
+
+            $sql = "
+                SELECT b.*, br.name as barber_name, s.name as service_name
+                FROM bookings b
+                LEFT JOIN barbers br ON b.barber_id = br.id
+                LEFT JOIN services s ON b.service_id = s.id
+                WHERE b.booking_date BETWEEN :from AND :to
+            ";
+            $params = [':from' => $date_from, ':to' => $date_to];
+
+            if (!empty($status)) {
+                $sql .= " AND b.status = :status";
+                $params[':status'] = $status;
+            }
+
+            $sql .= " ORDER BY b.booking_date DESC, b.booking_time DESC";
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            $bookings = $stmt->fetchAll();
+
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename=bookings_' . date('Y-m-d') . '.csv');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+
+            $output = fopen('php://output', 'w');
+            fputs($output, "\xEF\xBB\xBF");
+
+            fputcsv($output, ['Reference', 'Date', 'Time', 'Client', 'Phone', 'Email', 'Barber', 'Service', 'Status', 'Price', 'Payment Status']);
+
+            foreach ($bookings as $b) {
+                fputcsv($output, [
+                    $b['booking_reference'],
+                    $b['booking_date'],
+                    $b['booking_time'],
+                    $b['client_name'],
+                    $b['client_phone'],
+                    $b['client_email'],
+                    $b['barber_name'],
+                    $b['service_name'],
+                    $b['status'],
+                    $b['price'],
+                    $b['payment_status']
+                ]);
+            }
+
+            fclose($output);
+            exit;
+
+        case 'change_password':
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $stmt = $db->prepare("SELECT username, email FROM admins WHERE id = :id");
+                $stmt->execute([':id' => $user['user_id']]);
+                $admin = $stmt->fetch();
+
+                echo json_encode([
+                    'success' => true,
+                    'admin' => $admin
+                ]);
+            } else {
+                if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Invalid security token']);
+                    exit;
+                }
+
+                $current_password = $_POST['current_password'] ?? '';
+                $new_password = $_POST['new_password'] ?? '';
+                $new_username = sanitizeInput($_POST['new_username'] ?? '');
+                $new_email = sanitizeInput($_POST['new_email'] ?? '');
+
+                if (empty($current_password)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Current password is required']);
+                    exit;
+                }
+
+                $stmt = $db->prepare("SELECT * FROM admins WHERE id = :id");
+                $stmt->execute([':id' => $user['user_id']]);
+                $admin = $stmt->fetch();
+
+                if (!password_verify($current_password, $admin['password_hash'])) {
+                    http_response_code(401);
+                    echo json_encode(['error' => 'Current password is incorrect']);
+                    exit;
+                }
+
+                $updated = false;
+
+                if (!empty($new_password)) {
+                    if (strlen($new_password) < 8) {
+                        http_response_code(400);
+                        echo json_encode(['error' => 'Password must be at least 8 characters']);
+                        exit;
+                    }
+
+                    $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
+                    $db->prepare("UPDATE admins SET password_hash = :password WHERE id = :id")
+                       ->execute([':password' => $new_hash, ':id' => $user['user_id']]);
+                    $updated = true;
+                }
+
+                if (!empty($new_username) && $new_username !== $admin['username']) {
+                    $db->prepare("UPDATE admins SET username = :username WHERE id = :id")
+                       ->execute([':username' => $new_username, ':id' => $user['user_id']]);
+                    $updated = true;
+                }
+
+                if (!empty($new_email) && $new_email !== $admin['email']) {
+                    $db->prepare("UPDATE admins SET email = :email WHERE id = :id")
+                       ->execute([':email' => $new_email, ':id' => $user['user_id']]);
+                    $updated = true;
+                }
+
+                if ($updated) {
+                    logAdminActivity('account_update', $user['name'], 'Account settings updated');
+                    echo json_encode(['success' => true, 'message' => 'Account updated successfully']);
+                } else {
+                    echo json_encode(['success' => true, 'message' => 'No changes made']);
+                }
+            }
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Unknown action: ' . $action]);

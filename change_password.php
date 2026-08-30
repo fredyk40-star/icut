@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <a href="admin.php" class="block mt-2 text-barber-gold hover:text-barber-gold-light">← Back to Dashboard</a>
                 </div>
             <?php else: ?>
-                <form id="change-password-form" method="POST" action="" class="space-y-4">
+                <form id="change-password-form" method="POST" action="" class="space-y-4">`n                        <input type="hidden" name="action" value="change_password">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generateCSRFToken()); ?>">
                     <div>
                         <label class="block text-gray-300 text-sm mb-2">Username *</label>
