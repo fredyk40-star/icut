@@ -1,0 +1,44 @@
+# Dependencies
+/vendor
+/composer.lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel
+.vercelignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Temporary files
+/tmp
+/temp
+*.tmp
+*.temp
+
+# Uploads (use Vercel Blob instead)
+/uploads/*
+!/uploads/.gitkeep
+
+ck_*.txt

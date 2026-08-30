@@ -1,0 +1,29 @@
+# Deny all web access to the SQLite database directory.
+#
+# The database file contains client PII, admin password hashes and 2FA secrets.
+# Nothing in here should ever be reachable over HTTP.
+
+# Apache 2.4+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+# Apache 2.2 / mod_access_compat fallback
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+# Belt and braces: even if the directives above are ignored because
+# AllowOverride is restricted, refuse to hand these files to a browser.
+<FilesMatch "\.(db|db-journal|db-wal|db-shm|sqlite|sqlite3|sql|bak|bak_[0-9_]*)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+Options -Indexes

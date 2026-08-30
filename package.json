@@ -1,0 +1,17 @@
+{
+  "name": "icut-barbershop",
+  "version": "2.0.0",
+  "description": "icut Barbershop Booking System - Vercel Serverless",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "lint": "php -l api/**/*.php"
+  },
+  "dependencies": {
+    "vercel-php": "^0.6.0"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}

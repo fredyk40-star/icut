@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# Protect sensitive files
+#
+# Apache 2.4 uses `Require all denied`. The `Order/Deny` form only works when
+# mod_access_compat happens to be loaded, so it is kept purely as a fallback
+# rather than as the primary rule.
+# ---------------------------------------------------------------------------
+
+# .env and any variant (.env.example, .env.bak, ...)
+<FilesMatch "^\.env">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Config loaders, one-off scripts and CLI tooling that must never be web-run
+<FilesMatch "^(env\.php|test_db\.php|check_bookings_table\.php|inspect_bookings\.php|add_payment_columns\.php|migrate_mysql_to_sqlite\.php|setup_booking_protection\.php|setup_booking_trigger\.php|send_reminders\.php)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Databases, dumps and backups anywhere under the document root
+<FilesMatch "\.(db|db-journal|db-wal|db-shm|sqlite|sqlite3|sql|bak|log|ini|md)$|\.bak_[0-9_]+$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Version control and dependency metadata
+<FilesMatch "^(\.gitignore|\.gitattributes|composer\.(json|lock)|package(-lock)?\.json)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes
+
+# Never execute anything inside the upload directory
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^uploads/.*\.(php|phtml|php[0-9]|phar|pl|py|cgi|asp|aspx|jsp|sh)$ - [F,L,NC]
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# PHP session security
+# ---------------------------------------------------------------------------
+php_value session.cookie_httponly 1
+php_value session.cookie_samesite Strict
+php_value session.use_only_cookies 1
+# session.cookie_secure is set at runtime in db.php so that local HTTP
+# development still works while HTTPS deployments get a Secure cookie.
+
+# ---------------------------------------------------------------------------
+# Security headers
+# ---------------------------------------------------------------------------
+Header set X-Content-Type-Options nosniff
+Header set X-Frame-Options DENY
+Header set X-XSS-Protection "1; mode=block"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' data: https://cdn.coverr.co; connect-src 'self' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; frame-ancestors 'none';"
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS

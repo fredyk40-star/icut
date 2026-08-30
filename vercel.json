@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "framework": null,
+  "functions": {
+    "api/**/*.php": {
+      "runtime": "vercel-php@0.6.0",
+      "maxDuration": 10
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.php"
+    }
+  ],
+  "env": {
+    "VERCEL": "1",
+    "MYSQL_HOST": "@mysql_host",
+    "MYSQL_PORT": "@mysql_port",
+    "MYSQL_NAME": "@mysql_name",
+    "MYSQL_USER": "@mysql_user",
+    "MYSQL_PASS": "@mysql_pass",
+    "MYSQL_CHARSET": "@mysql_charset",
+    "MYSQL_SSL": "@mysql_ssl",
+    "JWT_SECRET": "@jwt_secret",
+    "ADMIN_ENTRY_KEY": "@admin_entry_key",
+    "SITE_URL": "@site_url",
+    "BLOB_READ_WRITE_TOKEN": "@blob_read_write_token"
+  }
+}
