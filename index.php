@@ -2145,10 +2145,16 @@ $max_date = date('Y-m-d', strtotime('+30 days'));
        title=""></a>
 
     <script>
-    // AJAX booking form submission for Vercel compatibility
+    // AJAX booking form submission — ONLY on Vercel, where the PHP router lives
+    // at /api/book. On other hosts (Apache/cPanel/XAMPP) the form posts natively
+    // to index.php, because /api/book does not exist there and the fetch would
+    // always fail with "Network error".
     (function() {
         const form = document.getElementById('booking-form');
         if (!form) return;
+
+        const bookingApiUrl = <?php echo env('VERCEL', '') !== '' ? "'/api/book'" : 'null'; ?>;
+        if (!bookingApiUrl) return; // native form POST to #book
 
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -2161,7 +2167,7 @@ $max_date = date('Y-m-d', strtotime('+30 days'));
             const formData = new FormData(form);
 
             try {
-                const response = await fetch('/api/book', {
+                const response = await fetch(bookingApiUrl, {
                     method: 'POST',
                     body: formData,
                     headers: {

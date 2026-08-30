@@ -75,12 +75,43 @@ function getDatabaseConnection() {
 
         // TiDB Cloud serverless / public MySQL over TLS typically require SSL.
         if (\defined('MYSQL_SSL') && MYSQL_SSL) {
-            $ca = env('MYSQL_SSL_CA', '');
-            if ($ca !== '') {
-                // A CA bundle must be provided for mysqlnd to actually use TLS
-                $options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+            // PHP 8.5+ moved the MySQL PDO constants to the namespaced
+            // Pdo\Mysql class; older versions keep them on PDO.
+            if (PHP_VERSION_ID >= 80500) {
+                $constCa = \Pdo\Mysql::ATTR_SSL_CA;
+                $constVerify = \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT;
+            } else {
+                $constCa = \PDO::MYSQL_ATTR_SSL_CA;
+                $constVerify = \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT;
             }
-            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+
+            // mysqlnd only enables TLS when a CA bundle is actually set. Use the
+            // configured path, or auto-detect a well-known system CA bundle
+            // (Vercel/Amazon Linux, Debian/Ubuntu, Alpine, Fedora/RHEL, XAMPP).
+            $ca = env('MYSQL_SSL_CA', '');
+            if ($ca === '') {
+                foreach ([
+                    '/etc/pki/tls/certs/ca-bundle.crt',
+                    '/etc/ssl/certs/ca-certificates.crt',
+                    '/etc/ssl/cert.pem',
+                    '/etc/ssl/ca-bundle.pem',
+                    'C:\\xampp\\apache\\bin\\curl-ca-bundle.crt',
+                ] as $candidate) {
+                    if (is_readable($candidate)) {
+                        $ca = $candidate;
+                        break;
+                    }
+                }
+            }
+
+            if ($ca !== '' && is_readable($ca)) {
+                $options[$constCa] = $ca;
+                // With a real CA bundle we can verify the TiDB certificate.
+                $options[$constVerify] = true;
+            } else {
+                // No CA available: still request TLS, but skip verification.
+                $options[$constVerify] = false;
+            }
         }
 
         // Create PDO instance
