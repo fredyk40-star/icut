@@ -33,9 +33,13 @@ function getDatabaseConnection() {
         if (defined('PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT')) {
             $sslVerifyKey = PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT;
             $sslCaKey = PDO\MySQL::ATTR_SSL_CA;
+            $sslModeKey = defined('PDO\MySQL::ATTR_SSL_MODE') ? PDO\MySQL::ATTR_SSL_MODE : null;
+            $sslModeRequired = defined('PDO\MySQL::SSL_MODE_REQUIRED') ? PDO\MySQL::SSL_MODE_REQUIRED : null;
         } else {
             $sslVerifyKey = PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT;
             $sslCaKey = PDO::MYSQL_ATTR_SSL_CA;
+            $sslModeKey = null;
+            $sslModeRequired = null;
         }
 
         $options[$sslVerifyKey] = false;
@@ -43,6 +47,8 @@ function getDatabaseConnection() {
         $caPath = env('MYSQL_SSL_CA', '');
         if ($caPath && file_exists($caPath)) {
             $options[$sslCaKey] = $caPath;
+        } elseif ($sslModeKey !== null && $sslModeRequired !== null) {
+            $options[$sslModeKey] = $sslModeRequired;
         } else {
             $candidates = ['/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt'];
             foreach ($candidates as $candidate) {
