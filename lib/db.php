@@ -34,19 +34,13 @@ function getDatabaseConnection() {
 
     // Add SSL if required
     if ($ssl == '1') {
-        // On PHP 8.5+ the namespaced Pdo\Mysql constants are the preferred API,
-        // but they may not be available yet. Fall back to the (deprecated but
-        // still present) PDO constants, suppressing the deprecation notices.
-        $constCa = defined('Pdo\Mysql\ATTR_SSL_CA')
-            ? 'Pdo\Mysql\ATTR_SSL_CA'
-            : (defined('PDO::MYSQL_ATTR_SSL_CA') ? 'PDO::MYSQL_ATTR_SSL_CA' : null);
-        $constVerify = defined('Pdo\Mysql\ATTR_SSL_VERIFY_SERVER_CERT')
-            ? 'Pdo\Mysql\ATTR_SSL_VERIFY_SERVER_CERT'
-            : (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') ? 'PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT' : null);
-
-        // mysqlnd only initiates TLS when a CA bundle is actually set.
-        // Auto-detect common system CA bundle paths (Vercel/Amazon Linux,
-        // Debian/Ubuntu, Alpine, Fedora/RHEL, XAMPP).
+        // PHP 8.5+ deprecates the PDO::MYSQL_ATTR_SSL_* constants but they
+        // still work. The namespaced Pdo\Mysql::ATTR_* alternatives may not be
+        // available yet, so we use the legacy constants with error suppression
+        // to avoid deprecation notices.
+        //
+        // mysqlnd only initiates TLS when a CA bundle is actually set, so we
+        // auto-detect a common system CA bundle path.
         $ca = env('MYSQL_SSL_CA', '');
         if ($ca === '') {
             $candidate_paths = [
@@ -63,12 +57,12 @@ function getDatabaseConnection() {
             }
         }
 
-        if ($constCa !== null && $ca !== '' && is_readable($ca)) {
-            @$options[$constCa] = $ca;
-        }
-
-        if ($constVerify !== null) {
-            @$options[$constVerify] = true;
+        if ($ca !== '' && is_readable($ca)) {
+            @$options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+            @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+        } else {
+            // No CA bundle found — still attempt TLS without cert verification
+            @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
     }
 
