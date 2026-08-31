@@ -3,6 +3,8 @@
  * Authentication middleware for Vercel serverless functions
  */
 
+require_once dirname(__DIR__) . '/lib/jwt.php';
+
 function requireAdminAuth() {
     $user = getCurrentUser();
     if (!$user || $user['role'] !== 'admin') {
