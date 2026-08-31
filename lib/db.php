@@ -42,6 +42,11 @@ function getDatabaseConnection() {
         // mysqlnd only initiates TLS when a CA bundle is actually set, so we
         // auto-detect a common system CA bundle path.
         $ca = env('MYSQL_SSL_CA', '');
+        // If the configured CA path doesn't exist on this platform, ignore it
+        // and fall through to auto-detection (handles Windows paths on Linux).
+        if ($ca !== '' && !is_readable($ca)) {
+            $ca = '';
+        }
         if ($ca === '') {
             $candidate_paths = [
                 '/etc/pki/tls/certs/ca-bundle.crt',
