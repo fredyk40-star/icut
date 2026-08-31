@@ -91,3 +91,27 @@ function ensureTableExists($tableName, $createSQL) {
         // Table might already exist
     }
 }
+
+/**
+ * Run lightweight schema migrations to add columns that the SQL dump may
+ * be missing. TiDB supports ALTER TABLE ... ADD COLUMN IF NOT EXISTS.
+ */
+function migrateSchema() {
+    $db = getDatabaseConnection();
+    $migrations = [
+        "ALTER TABLE barbers ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0",
+        "ALTER TABLE services ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0",
+        "ALTER TABLE packages ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0",
+    ];
+    foreach ($migrations as $sql) {
+        try {
+            $db->exec($sql);
+        } catch (Exception $e) {
+            // Column might already exist or migration not needed
+            error_log("Migration note: " . $e->getMessage());
+        }
+    }
+}
+
+// Run migrations on each connection (idempotent, safe to repeat)
+migrateSchema();
