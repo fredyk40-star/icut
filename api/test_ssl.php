@@ -1,45 +1,110 @@
 <?php
-/**
- * Test SSL CA bundle availability
- */
-$paths = [
-    '/etc/pki/tls/certs/ca-bundle.crt',
-    '/etc/ssl/certs/ca-certificates.crt',
-    '/etc/ssl/cert.pem',
-    '/etc/ssl/ca-bundle.pem',
-    '/etc/pki/tls/cacert.pem',
-    '/usr/local/share/ca-certificates/',
+header('Content-Type: text/plain');
+
+echo "Testing PDO SSL connection...\n\n";
+
+$host = 'gateway01.eu-central-1.prod.aws.tidbcloud.com';
+$port = 4000;
+$name = 'barbershop_db';
+$user = '2Z5TYhtso9UUbPX.root';
+$pass = 'Ik6ag4ELPNTpXGT6';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;port=$port;dbname=$name;charset=$charset";
+
+echo "DSN: $dsn\n\n";
+
+// Test 1: With CA bundle + verify
+echo "Test 1: With CA + verify=true\n";
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+    @PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+    @PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => true,
 ];
-
-echo "PHP Version: " . PHP_VERSION . "\n";
-echo "PHP_VERSION_ID: " . PHP_VERSION_ID . "\n\n";
-
-// Check constants
-echo "PDO::MYSQL_ATTR_SSL_CA: " . (defined('PDO::MYSQL_ATTR_SSL_CA') ? @PDO::MYSQL_ATTR_SSL_CA : 'undefined') . "\n";
-echo "PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT: " . (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') ? @PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT : 'undefined') . "\n";
-echo "PDO::MYSQL_ATTR_SSL_MODE: " . (defined('PDO::MYSQL_ATTR_SSL_MODE') ? @PDO::MYSQL_ATTR_SSL_MODE : 'undefined') . "\n";
-echo "PDO::MYSQL_ATTR_SSL_CIPHER: " . (defined('PDO::MYSQL_ATTR_SSL_CIPHER') ? 'yes' : 'no') . "\n";
-echo "PDO::MYSQL_ATTR_SSL_KEY: " . (defined('PDO::MYSQL_ATTR_SSL_KEY') ? 'yes' : 'no') . "\n";
-echo "PDO::MYSQL_ATTR_SSL_CERT: " . (defined('PDO::MYSQL_ATTR_SSL_CERT') ? 'yes' : 'no') . "\n";
-
-echo "\nPDO::ATTR_SSL_CA (try): " . (defined('PDO::ATTR_SSL_CA') ? PDO::ATTR_SSL_CA : 'undefined') . "\n";
-echo "Pdo\Mysql class exists: " . (class_exists('Pdo\Mysql') ? 'yes' : 'no') . "\n";
-if (class_exists('Pdo\Mysql')) {
-    echo "Pdo\Mysql::ATTR_SSL_CA: " . (defined('Pdo\Mysql\ATTR_SSL_CA') ? Pdo\Mysql::ATTR_SSL_CA : 'undefined') . "\n";
-    echo "Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT: " . (defined('Pdo\Mysql\ATTR_SSL_VERIFY_SERVER_CERT') ? Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT : 'undefined') . "\n";
+try {
+    $db = new PDO($dsn, $user, $pass, $options);
+    echo "RESULT: SUCCESS!\n";
+    $row = $db->query("SELECT 1")->fetch();
+    print_r($row);
+} catch (Exception $e) {
+    echo "RESULT: FAILED - " . $e->getMessage() . "\n";
 }
 
-echo "\nCA Bundle Paths:\n";
-foreach ($paths as $path) {
-    if (file_exists($path)) {
-        echo "  EXISTS: $path (readable: " . (is_readable($path) ? 'yes' : 'no') . ", size: " . filesize($path) . ")\n";
-    } else {
-        echo "  MISSING: $path\n";
-    }
+echo "\n";
+
+// Test 2: With CA bundle + verify=false
+echo "Test 2: With CA + verify=false\n";
+$options2 = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+    @PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+    @PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+];
+try {
+    $db = new PDO($dsn, $user, $pass, $options2);
+    echo "RESULT: SUCCESS!\n";
+    $row = $db->query("SELECT 1")->fetch();
+    print_r($row);
+} catch (Exception $e) {
+    echo "RESULT: FAILED - " . $e->getMessage() . "\n";
 }
 
-echo "\nOpenSSL CA file: " . ini_get('openssl.cafile') . "\n";
-echo "OpenSSL CA path: " . ini_get('openssl.capath') . "\n";
+echo "\n";
 
-echo "\nopenssl_get_cert_locations:\n";
-print_r(openssl_get_cert_locations());
+// Test 3: With CA only, no verify flag
+echo "Test 3: With CA only, no verify flag\n";
+$options3 = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+    @PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+];
+try {
+    $db = new PDO($dsn, $user, $pass, $options3);
+    echo "RESULT: SUCCESS!\n";
+    $row = $db->query("SELECT 1")->fetch();
+    print_r($row);
+} catch (Exception $e) {
+    echo "RESULT: FAILED - " . $e->getMessage() . "\n";
+}
+
+echo "\n";
+
+// Test 4: DSN with ssl-mode=REQUIRED
+echo "Test 4: DSN with ssl-mode=REQUIRED\n";
+$dsn4 = "mysql:host=$host;port=$port;dbname=$name;charset=$charset;ssl-mode=REQUIRED";
+$options4 = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+];
+try {
+    $db = new PDO($dsn4, $user, $pass, $options4);
+    echo "RESULT: SUCCESS!\n";
+    $row = $db->query("SELECT 1")->fetch();
+    print_r($row);
+} catch (Exception $e) {
+    echo "RESULT: FAILED - " . $e->getMessage() . "\n";
+}
+
+echo "\n";
+
+// Test 5: DSN with ssl-mode=REQUIRED + CA in DSN
+echo "Test 5: DSN with ssl-ca in params\n";
+$dsn5 = "mysql:host=$host;port=$port;dbname=$name;charset=$charset;ssl-mode=REQUIRED;ssl-ca=/etc/ssl/certs/ca-certificates.crt";
+$options5 = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+];
+try {
+    $db = new PDO($dsn5, $user, $pass, $options5);
+    echo "RESULT: SUCCESS!\n";
+    $row = $db->query("SELECT 1")->fetch();
+    print_r($row);
+} catch (Exception $e) {
+    echo "RESULT: FAILED - " . $e->getMessage() . "\n";
+}
