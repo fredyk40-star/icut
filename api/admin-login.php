@@ -4,10 +4,10 @@
  * Route: POST /api/admin-login
  */
 
-require_once dirname(__DIR__) . '/user/lib/env.php';
-require_once dirname(__DIR__) . '/user/lib/db.php';
-require_once dirname(__DIR__) . '/user/lib/csrf.php';
-require_once dirname(__DIR__) . '/user/middleware/auth.php';
+require_once dirname(__DIR__) . '/lib/env.php';
+require_once dirname(__DIR__) . '/lib/db.php';
+require_once dirname(__DIR__) . '/lib/csrf.php';
+require_once dirname(__DIR__) . '/middleware/auth.php';
 
 loadEnv(__DIR__ . '/../.env');
 
