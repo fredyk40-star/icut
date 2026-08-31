@@ -19,6 +19,11 @@ function getDatabaseConnection() {
     $charset = env('MYSQL_CHARSET', 'utf8mb4');
     $ssl = env('MYSQL_SSL', '0');
 
+    // Auto-enable SSL for TiDB Cloud hosts (they always require TLS)
+    if (strpos($host, 'tidbcloud.com') !== false || strpos($host, 'tidbcloud') !== false) {
+        $ssl = '1';
+    }
+
     $dsn = "mysql:host=$host;port=$port;dbname=$name;charset=$charset";
 
     $options = [
