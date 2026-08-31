@@ -49,6 +49,7 @@ function getDatabaseConnection() {
         }
         if ($ca === '') {
             $candidate_paths = [
+                dirname(__DIR__) . '/certs/isrgrootx1.pem',
                 '/etc/pki/tls/certs/ca-bundle.crt',
                 '/etc/ssl/certs/ca-certificates.crt',
                 '/etc/ssl/cert.pem',
@@ -66,7 +67,9 @@ function getDatabaseConnection() {
             @$options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
             @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
         } else {
-            // No CA bundle found — still attempt TLS without cert verification
+            // No CA bundle found — mysqlnd will NOT initiate TLS without a CA,
+            // so the connection will fail on TiDB Cloud. Log loudly.
+            error_log("WARNING: No CA bundle found for MySQL TLS; connection may be rejected as insecure transport.");
             @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
     }
