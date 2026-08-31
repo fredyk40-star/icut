@@ -34,27 +34,38 @@ function getDatabaseConnection() {
 
     // Add SSL if required
     if ($ssl == '1') {
-        // Build a minimal options array without deprecated constants
-        $sslOptions = [];
-        
+        // Use DSN query param for ssl-mode (most reliable across PHP versions)
+        $dsn .= ';ssl-mode=REQUIRED';
+
+        // Also set PDO attributes for broader compatibility
         if (defined('PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT')) {
-            $sslOptions[PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            $options[PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
-        
+
         if (defined('PDO\MySQL::ATTR_SSL_CA')) {
             $caPath = env('MYSQL_SSL_CA', '');
+            if (empty($caPath)) {
+                // Try common system CA bundle paths
+                $common_paths = [
+                    '/etc/ssl/certs/ca-certificates.crt',
+                    '/etc/pki/tls/certs/ca-bundle.crt',
+                    '/etc/ssl/cert.pem',
+                ];
+                foreach ($common_paths as $path) {
+                    if (file_exists($path)) {
+                        $caPath = $path;
+                        break;
+                    }
+                }
+            }
             if ($caPath && file_exists($caPath)) {
-                $sslOptions[PDO\MySQL::ATTR_SSL_CA] = $caPath;
+                $options[PDO\MySQL::ATTR_SSL_CA] = $caPath;
             }
         }
-        
+
+        // Fallback: try ATTR_SSL_MODE if available
         if (defined('PDO\MySQL::ATTR_SSL_MODE') && defined('PDO\MySQL::SSL_MODE_REQUIRED')) {
-            $sslOptions[PDO\MySQL::ATTR_SSL_MODE] = PDO\MySQL::SSL_MODE_REQUIRED;
-        }
-        
-        // Only add non-empty options
-        foreach ($sslOptions as $key => $value) {
-            $options[$key] = $value;
+            $options[PDO\MySQL::ATTR_SSL_MODE] = PDO\MySQL::SSL_MODE_REQUIRED;
         }
     }
 
