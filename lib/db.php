@@ -34,38 +34,42 @@ function getDatabaseConnection() {
 
     // Add SSL if required
     if ($ssl == '1') {
-        // Use DSN query param for ssl-mode (most reliable across PHP versions)
-        $dsn .= ';ssl-mode=REQUIRED';
-
-        // Also set PDO attributes for broader compatibility
-        if (defined('PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT')) {
-            $options[PDO\MySQL::ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        // PHP 8.5+ moved MySQL PDO constants to the namespaced Pdo\Mysql class;
+        // older versions keep them on PDO. Use the appropriate constants.
+        if (PHP_VERSION_ID >= 80500) {
+            $constCa = \Pdo\Mysql::ATTR_SSL_CA;
+            $constVerify = \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT;
+        } else {
+            $constCa = \PDO::MYSQL_ATTR_SSL_CA;
+            $constVerify = \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT;
         }
 
-        if (defined('PDO\MySQL::ATTR_SSL_CA')) {
-            $caPath = env('MYSQL_SSL_CA', '');
-            if (empty($caPath)) {
-                // Try common system CA bundle paths
-                $common_paths = [
-                    '/etc/ssl/certs/ca-certificates.crt',
-                    '/etc/pki/tls/certs/ca-bundle.crt',
-                    '/etc/ssl/cert.pem',
-                ];
-                foreach ($common_paths as $path) {
-                    if (file_exists($path)) {
-                        $caPath = $path;
-                        break;
-                    }
+        // mysqlnd only enables TLS when a CA bundle is set. Try the configured
+        // path, then auto-detect common system CA bundles (Vercel/Amazon Linux,
+        // Debian/Ubuntu, Alpine, Fedora/RHEL, XAMPP).
+        $ca = env('MYSQL_SSL_CA', '');
+        if ($ca === '') {
+            $candidate_paths = [
+                '/etc/pki/tls/certs/ca-bundle.crt',
+                '/etc/ssl/certs/ca-certificates.crt',
+                '/etc/ssl/cert.pem',
+                '/etc/ssl/ca-bundle.pem',
+            ];
+            foreach ($candidate_paths as $candidate) {
+                if (is_readable($candidate)) {
+                    $ca = $candidate;
+                    break;
                 }
             }
-            if ($caPath && file_exists($caPath)) {
-                $options[PDO\MySQL::ATTR_SSL_CA] = $caPath;
-            }
         }
 
-        // Fallback: try ATTR_SSL_MODE if available
-        if (defined('PDO\MySQL::ATTR_SSL_MODE') && defined('PDO\MySQL::SSL_MODE_REQUIRED')) {
-            $options[PDO\MySQL::ATTR_SSL_MODE] = PDO\MySQL::SSL_MODE_REQUIRED;
+        if ($ca !== '' && is_readable($ca)) {
+            $options[$constCa] = $ca;
+            // With a real CA bundle we can verify the server certificate
+            $options[$constVerify] = true;
+        } else {
+            // No CA available: still request TLS, but skip verification
+            $options[$constVerify] = false;
         }
     }
 
