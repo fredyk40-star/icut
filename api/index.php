@@ -151,26 +151,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title><?php echo htmlspecialchars($settings['site_name'] ?? 'icut'); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        /* Add your CSS here */
-    </style>
 </head>
-<body class="bg-barber-900 text-white">
-    <!-- Your HTML content here -->
-    <h1><?php echo htmlspecialchars($settings['site_name'] ?? 'icut'); ?></h1>
-    
-    <?php if ($message): ?>
-        <div class="bg-green-900/50 border border-green-700 text-green-300 px-4 py-3 rounded-lg">
-            <?php echo htmlspecialchars($message); ?>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="max-w-3xl mx-auto px-6 py-16">
+        <h1 class="text-4xl font-bold mb-2"><?php echo htmlspecialchars($settings['site_name'] ?? 'icut'); ?></h1>
+        <p class="text-gray-400 mb-10">Booking system is live and connected to the database.</p>
+
+        <?php if ($message): ?>
+            <div class="bg-green-900/50 border border-green-700 text-green-300 px-4 py-3 rounded-lg mb-6"><?php echo htmlspecialchars($message); ?></div>
+        <?php endif; ?>
+        <?php if ($error): ?>
+            <div class="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-6"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-gray-800 rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold"><?php echo count($services); ?></div>
+                <div class="text-gray-400 text-sm mt-1">Services</div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold"><?php echo count($barbers); ?></div>
+                <div class="text-gray-400 text-sm mt-1">Barbers</div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold"><?php echo count($packages); ?></div>
+                <div class="text-gray-400 text-sm mt-1">Packages</div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold"><?php echo count($gallery_items); ?></div>
+                <div class="text-gray-400 text-sm mt-1">Gallery</div>
+            </div>
         </div>
-    <?php endif; ?>
-    
-    <?php if ($error): ?>
-        <div class="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg">
-            <?php echo htmlspecialchars($error); ?>
-        </div>
-    <?php endif; ?>
-    
-    <!-- Rest of your HTML -->
+
+        <?php if (!empty($services)): ?>
+        <h2 class="text-2xl font-semibold mt-12 mb-4">Services</h2>
+        <ul class="space-y-2">
+            <?php foreach ($services as $s): ?>
+            <li class="bg-gray-800 rounded-lg px-4 py-3 flex justify-between">
+                <span><?php echo htmlspecialchars($s['name']); ?></span>
+                <span class="text-gray-400"><?php echo htmlspecialchars((string)$s['price']); ?></span>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+
+        <p class="text-gray-600 text-sm mt-12">Full site UI coming soon &middot; API endpoints: <code class="text-gray-400">/api/book.php</code>, <code class="text-gray-400">/api/client.php</code>, <code class="text-gray-400">/api/admin.php</code></p>
+    </div>
 </body>
 </html>
