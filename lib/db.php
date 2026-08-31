@@ -34,18 +34,18 @@ function getDatabaseConnection() {
 
     // Add SSL if required
     if ($ssl == '1') {
-        // PHP 8.5+ moved MySQL PDO constants to the namespaced Pdo\Mysql class;
-        // older versions keep them on PDO. Use the appropriate constants.
-        if (PHP_VERSION_ID >= 80500) {
-            $constCa = \Pdo\Mysql::ATTR_SSL_CA;
-            $constVerify = \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT;
-        } else {
-            $constCa = \PDO::MYSQL_ATTR_SSL_CA;
-            $constVerify = \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT;
-        }
+        // On PHP 8.5+ the namespaced Pdo\Mysql constants are the preferred API,
+        // but they may not be available yet. Fall back to the (deprecated but
+        // still present) PDO constants, suppressing the deprecation notices.
+        $constCa = defined('Pdo\Mysql\ATTR_SSL_CA')
+            ? 'Pdo\Mysql\ATTR_SSL_CA'
+            : (defined('PDO::MYSQL_ATTR_SSL_CA') ? 'PDO::MYSQL_ATTR_SSL_CA' : null);
+        $constVerify = defined('Pdo\Mysql\ATTR_SSL_VERIFY_SERVER_CERT')
+            ? 'Pdo\Mysql\ATTR_SSL_VERIFY_SERVER_CERT'
+            : (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') ? 'PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT' : null);
 
-        // mysqlnd only enables TLS when a CA bundle is set. Try the configured
-        // path, then auto-detect common system CA bundles (Vercel/Amazon Linux,
+        // mysqlnd only initiates TLS when a CA bundle is actually set.
+        // Auto-detect common system CA bundle paths (Vercel/Amazon Linux,
         // Debian/Ubuntu, Alpine, Fedora/RHEL, XAMPP).
         $ca = env('MYSQL_SSL_CA', '');
         if ($ca === '') {
@@ -63,13 +63,12 @@ function getDatabaseConnection() {
             }
         }
 
-        if ($ca !== '' && is_readable($ca)) {
-            $options[$constCa] = $ca;
-            // With a real CA bundle we can verify the server certificate
-            $options[$constVerify] = true;
-        } else {
-            // No CA available: still request TLS, but skip verification
-            $options[$constVerify] = false;
+        if ($constCa !== null && $ca !== '' && is_readable($ca)) {
+            @$options[$constCa] = $ca;
+        }
+
+        if ($constVerify !== null) {
+            @$options[$constVerify] = true;
         }
     }
 
