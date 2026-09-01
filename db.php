@@ -74,17 +74,19 @@ function getDatabaseConnection() {
         ];
 
         // TiDB Cloud serverless / public MySQL over TLS typically require SSL.
-        if (\defined('MYSQL_SSL') && MYSQL_SSL) {
+        $mysql_ssl = filter_var(env('MYSQL_SSL', '0'), FILTER_VALIDATE_BOOLEAN);
+        if (strpos($GLOBALS['__mysql_host'], 'tidbcloud.com') !== false || strpos($GLOBALS['__mysql_host'], 'tidbcloud') !== false) {
+            $mysql_ssl = true;
+        }
+
+        if ($mysql_ssl) {
+            $dsn .= ';sslmode=REQUIRED';
+
             // PHP 8.5+ deprecates PDO::MYSQL_ATTR_SSL_* constants but they still
             // work. The namespaced Pdo\Mysql::ATTR_* alternatives don't exist on
             // PHP 8.5.0/8.5.1/8.5.2, so we use the legacy constants.
-            $constCa = \PDO::MYSQL_ATTR_SSL_CA;
-            $constVerify = \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT;
-
-            // Auto-enable SSL for TiDB Cloud hosts
-            if (strpos($GLOBALS['__mysql_host'], 'tidbcloud.com') !== false || strpos($GLOBALS['__mysql_host'], 'tidbcloud') !== false) {
-                // Already SSL-enabled
-            }
+            $constCa = defined('PDO::MYSQL_ATTR_SSL_CA') ? \PDO::MYSQL_ATTR_SSL_CA : null;
+            $constVerify = defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') ? \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT : null;
 
             // mysqlnd only enables TLS when a CA bundle is actually set. Use the
             // configured path, or auto-detect a well-known system CA bundle
@@ -100,6 +102,7 @@ function getDatabaseConnection() {
                     '/etc/ssl/certs/ca-certificates.crt',
                     '/etc/ssl/cert.pem',
                     '/etc/ssl/ca-bundle.pem',
+                    '/etc/ssl/certs/ca-bundle.trust.crt',
                     'C:\\xampp\\apache\\bin\\curl-ca-bundle.crt',
                 ] as $candidate) {
                     if (is_readable($candidate)) {
@@ -109,11 +112,13 @@ function getDatabaseConnection() {
                 }
             }
 
-            if ($ca !== '' && is_readable($ca)) {
+            if ($ca !== '' && is_readable($ca) && $constCa !== null) {
                 @$options[$constCa] = $ca;
                 // With a real CA bundle we can verify the TiDB certificate.
-                @$options[$constVerify] = true;
-            } else {
+                if ($constVerify !== null) {
+                    @$options[$constVerify] = true;
+                }
+            } elseif ($constVerify !== null) {
                 // No CA available: still request TLS, but skip verification.
                 @$options[$constVerify] = false;
             }

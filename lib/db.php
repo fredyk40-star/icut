@@ -17,14 +17,17 @@ function getDatabaseConnection() {
     $user = env('MYSQL_USER', 'root');
     $pass = env('MYSQL_PASS', '');
     $charset = env('MYSQL_CHARSET', 'utf8mb4');
-    $ssl = env('MYSQL_SSL', '0');
+    $ssl = filter_var(env('MYSQL_SSL', '0'), FILTER_VALIDATE_BOOLEAN);
 
     // Auto-enable SSL for TiDB Cloud hosts (they always require TLS)
     if (strpos($host, 'tidbcloud.com') !== false || strpos($host, 'tidbcloud') !== false) {
-        $ssl = '1';
+        $ssl = true;
     }
 
     $dsn = "mysql:host=$host;port=$port;dbname=$name;charset=$charset";
+    if ($ssl) {
+        $dsn .= ';sslmode=REQUIRED';
+    }
 
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -33,7 +36,7 @@ function getDatabaseConnection() {
     ];
 
     // Add SSL if required
-    if ($ssl == '1') {
+    if ($ssl) {
         // PHP 8.5+ deprecates the PDO::MYSQL_ATTR_SSL_* constants but they
         // still work. The namespaced Pdo\Mysql::ATTR_* alternatives may not be
         // available yet, so we use the legacy constants with error suppression
@@ -54,6 +57,7 @@ function getDatabaseConnection() {
                 '/etc/ssl/certs/ca-certificates.crt',
                 '/etc/ssl/cert.pem',
                 '/etc/ssl/ca-bundle.pem',
+                '/etc/ssl/certs/ca-bundle.trust.crt',
             ];
             foreach ($candidate_paths as $candidate) {
                 if (is_readable($candidate)) {
@@ -64,13 +68,19 @@ function getDatabaseConnection() {
         }
 
         if ($ca !== '' && is_readable($ca)) {
-            @$options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
-            @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+            if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
+                @$options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+            }
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+            }
         } else {
             // No CA bundle found — mysqlnd will NOT initiate TLS without a CA,
             // so the connection will fail on TiDB Cloud. Log loudly.
             error_log("WARNING: No CA bundle found for MySQL TLS; connection may be rejected as insecure transport.");
-            @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                @$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
         }
     }
 
