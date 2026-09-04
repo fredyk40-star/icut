@@ -41,8 +41,9 @@ if ($verification['success']) {
         
         logAdminActivity('payment_success', 'System', "Payment successful for booking #{$booking['booking_reference']} - ₵" . number_format($amount, 2), $booking_id);
         
-        // Redirect to confirmation page
-        header('Location: index.php?booked=1&ref=' . urlencode($booking['booking_reference']) . '&payment=success');
+        // Redirect to confirmation page (on Vercel the home page is served at /)
+        $home = env('VERCEL', '') !== '' ? '/' : 'index.php';
+        header('Location: ' . $home . '?booked=1&ref=' . urlencode($booking['booking_reference']) . '&payment=success');
         exit;
     }
 }
@@ -55,7 +56,8 @@ if ($failed_booking) {
     
     logAdminActivity('payment_failed', 'System', "Payment failed for booking #{$failed_booking['booking_reference']}", $failed_booking['booking_id']);
     
-    header('Location: index.php?booked=1&ref=' . urlencode($failed_booking['booking_reference']) . '&payment=failed');
+    $home = env('VERCEL', '') !== '' ? '/' : 'index.php';
+    header('Location: ' . $home . '?booked=1&ref=' . urlencode($failed_booking['booking_reference']) . '&payment=failed');
     exit;
 }
 

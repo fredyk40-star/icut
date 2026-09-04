@@ -990,8 +990,15 @@ function initializePaystackPayment($booking_id, $email, $amount, $booking_refere
     
     $amount_in_kobo = (int)round($requested_amount * 100);
     $reference = 'icut_' . preg_replace('/[^A-Za-z0-9]/', '', $booking_reference) . '_' . time() . '_' . bin2hex(random_bytes(4));
-    $callback_url = env('SITE_URL', 'http://localhost/icut') . '/payment_callback.php';
-    $webhook_url = env('SITE_URL', 'http://localhost/icut') . '/payment_webhook.php';
+    $site_base = rtrim(env('SITE_URL', 'http://localhost/icut'), '/');
+    if (env('VERCEL', '') !== '') {
+        // On Vercel the callback/webhook live under /api as serverless functions.
+        $callback_url = $site_base . '/api/payment-callback.php';
+        $webhook_url = $site_base . '/api/payment-webhook.php';
+    } else {
+        $callback_url = $site_base . '/payment_callback.php';
+        $webhook_url = $site_base . '/payment_webhook.php';
+    }
     
     $payload = [
         'amount' => $amount_in_kobo,

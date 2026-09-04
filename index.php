@@ -2085,7 +2085,7 @@ $max_date = date('Y-m-d', strtotime('+30 days'));
             
             if (errorEl) errorEl.classList.add('hidden');
             
-            fetch('payment.php', {
+            fetch(<?php echo env('VERCEL', '') !== '' ? "'/api/payment.php'" : "'payment.php'"; ?>, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
