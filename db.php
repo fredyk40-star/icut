@@ -59,19 +59,31 @@ function getDatabaseConnection() {
     try {
         // Data Source Name for MySQL / TiDB
         $dsn = sprintf(
-            "mysql:host=%s;port=%s;dbname=%s;charset=%s",
+            "mysql:host=%s;port=%s;dbname=%s",
             $GLOBALS['__mysql_host'],
             $GLOBALS['__mysql_port'],
-            $GLOBALS['__mysql_name'],
-            $GLOBALS['__mysql_charset']
+            $GLOBALS['__mysql_name']
         );
 
-        // PDO options for security and error handling
+        // PDO options for security and error handling.
+        // Note: charset is intentionally NOT in the DSN. On the vercel-php /
+        // mysqlnd runtime that triggers SQLSTATE[HY000] [2019] "Unknown
+        // character set"; instead it is applied via the init command below.
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,  // Throw exceptions on errors
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,        // Return associative arrays
             PDO::ATTR_EMULATE_PREPARES   => false                    // Use real prepared statements
         ];
+
+        // Set the session charset. PHP 8.5 deprecates the legacy
+        // PDO::MYSQL_ATTR_INIT_COMMAND constant (which would emit a notice
+        // before headers are sent); use the namespaced one when available.
+        $initCommand = 'SET NAMES ' . $GLOBALS['__mysql_charset'];
+        if (defined('PDO::MYSQL_ATTR_INIT_COMMAND') && !defined('\Pdo\Mysql::ATTR_INIT_COMMAND')) {
+            $options[PDO::MYSQL_ATTR_INIT_COMMAND] = $initCommand;
+        } else {
+            $options[\Pdo\Mysql::ATTR_INIT_COMMAND] = $initCommand;
+        }
 
         // TiDB Cloud serverless / public MySQL over TLS typically require SSL.
         $mysql_ssl = filter_var(env('MYSQL_SSL', '0'), FILTER_VALIDATE_BOOLEAN);

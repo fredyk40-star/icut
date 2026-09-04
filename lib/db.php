@@ -91,8 +91,16 @@ function getDatabaseConnection() {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
-        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . $charset,
     ];
+    $initCommand = 'SET NAMES ' . $charset;
+    // PHP 8.5 deprecates the legacy PDO::MYSQL_ATTR_INIT_COMMAND constant and
+    // emits a deprecation notice before headers are sent. Use the namespaced
+    // constant when it is available and keep the legacy one for older PHP.
+    if (defined('PDO::MYSQL_ATTR_INIT_COMMAND') && !defined('\Pdo\Mysql::ATTR_INIT_COMMAND')) {
+        $options[PDO::MYSQL_ATTR_INIT_COMMAND] = $initCommand;
+    } else {
+        $options[\Pdo\Mysql::ATTR_INIT_COMMAND] = $initCommand;
+    }
 
     // Add SSL if required
     if ($ssl) {
