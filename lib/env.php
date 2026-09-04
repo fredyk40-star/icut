@@ -29,5 +29,17 @@ function loadEnv($path = '.env') {
 }
 
 function env($key, $default = '') {
-    return $_ENV[$key] ?? $default;
+    // Check in priority order so Vercel-injected variables are found no matter
+    // which PHP globals the runtime populates ($_ENV, $_SERVER, or getenv()).
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') {
+        return $_SERVER[$key];
+    }
+    $value = getenv($key);
+    if ($value !== false && $value !== '') {
+        return $value;
+    }
+    return $default;
 }

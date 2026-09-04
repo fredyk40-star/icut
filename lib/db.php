@@ -24,7 +24,18 @@ function getDatabaseConnection() {
         $ssl = true;
     }
 
-    $dsn = "mysql:host=$host;port=$port;dbname=$name;charset=$charset";
+    // Explicitly reject delays caused by missing/invalid configuration instead
+    // of silently connecting with an empty host (which yields confusing errors).
+    foreach (['MYSQL_HOST' => 'host', 'MYSQL_NAME' => 'database name'] as $var => $label) {
+        if (trim(env($var, '')) === '') {
+            throw new RuntimeException("Environment variable $var ($label) is not set. Please configure it in the Vercel dashboard.");
+        }
+    }
+
+    // Note: do NOT put charset in the DSN. On the vercel-php/mysqlnd runtime that
+    // triggers SQLSTATE[HY000] [2019] "Unknown character set". Instead set the
+    // session charset via the init command below.
+    $dsn = "mysql:host=$host;port=$port;dbname=$name";
     if ($ssl) {
         $dsn .= ';sslmode=REQUIRED';
     }
@@ -33,6 +44,7 @@ function getDatabaseConnection() {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . $charset,
     ];
 
     // Add SSL if required
