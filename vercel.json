@@ -5,10 +5,6 @@
     "api/**/*.php": {
       "runtime": "vercel-php@0.9.0",
       "maxDuration": 10
-    },
-    "index.php": {
-      "runtime": "vercel-php@0.9.0",
-      "maxDuration": 10
     }
   },
   "routes": [
@@ -18,7 +14,7 @@
     },
     {
       "src": "/",
-      "dest": "/index.php"
+      "dest": "/api/index.php"
     }
   ]
 }
