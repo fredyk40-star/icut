@@ -4,6 +4,50 @@
  * Uses the same PDO connection as db.php but optimized for serverless
  */
 
+/**
+ * Build a diagnostic summary of which expected environment variable keys are
+ * present and where they were found. Never includes values (only key names),
+ * so it is safe to log / expose in an error message.
+ *
+ * @param array $prefixes Prefixes whose keys we care about (e.g. ['MYSQL', 'JWT']).
+ * @return string Multi-line summary for inclusion in an exception message.
+ */
+function envDiagnostics(array $prefixes) {
+    // Gather distinct key names from all candidate sources.
+    $allKeys = [];
+    foreach ($_ENV as $k => $_v)      { $allKeys[$k] = true; }
+    foreach ($_SERVER as $k => $_v)   { $allKeys[$k] = true; }
+    $envAll = getenv();
+    if (is_array($envAll)) {
+        foreach ($envAll as $k => $_v) { $allKeys[$k] = true; }
+    }
+
+    $found = [];
+    foreach (array_keys($allKeys) as $k) {
+        $matches = false;
+        foreach ($prefixes as $p) {
+            if (stripos($k, $p) === 0) { $matches = true; break; }
+        }
+        if (!$matches) {
+            continue;
+        }
+
+        $where = [];
+        if (isset($_ENV[$k]) && $_ENV[$k] !== '')            { $where[] = '$_ENV'; }
+        if (isset($_SERVER[$k]) && $_SERVER[$k] !== '')      { $where[] = '$_SERVER'; }
+        $gv = getenv($k);
+        if ($gv !== false && $gv !== '')                     { $where[] = 'getenv'; }
+        if (!empty($where)) {
+            $found[] = "$k (" . implode('/', $where) . ")";
+        }
+    }
+
+    sort($found);
+    return $found
+        ? 'Found env keys: ' . implode(', ', $found)
+        : 'No env keys matched prefixes (' . implode(',', $prefixes) . ') in $_ENV, $_SERVER, or getenv().';
+}
+
 function getDatabaseConnection() {
     static $db = null;
 
@@ -28,7 +72,10 @@ function getDatabaseConnection() {
     // of silently connecting with an empty host (which yields confusing errors).
     foreach (['MYSQL_HOST' => 'host', 'MYSQL_NAME' => 'database name'] as $var => $label) {
         if (trim(env($var, '')) === '') {
-            throw new RuntimeException("Environment variable $var ($label) is not set. Please configure it in the Vercel dashboard.");
+            $diag = envDiagnostics(['MYSQL_', 'JWT_', 'ADMIN_', 'SITE_', 'BLOB_']);
+            throw new RuntimeException(
+                "Environment variable $var ($label) is not set. Please configure it in the Vercel dashboard. Diagnostic => $diag"
+            );
         }
     }
 
